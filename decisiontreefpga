@@ -1,0 +1,349 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date:    02:51:48 02/14/2026 
+// Design Name: 
+// Module Name:    dt_firewall 
+// Project Name: 
+// Target Devices: 
+// Tool versions: 
+// Description: 
+//
+// Dependencies: 
+//
+// Revision: 
+// Revision 0.01 - File Created
+// Additional Comments: 
+//
+//////////////////////////////////////////////////////////////////////////////////
+// ==========================================================
+
+// Decision Tree Hardware Firewall (Spartan-6 Ready)
+
+// Class: 1 = ATTACK, 0 = NORMAL
+
+// ==========================================================
+
+module dt_firewall (
+
+    input  wire [2:0]  proto,
+
+    input  wire [3:0]  conn_state,
+
+    input  wire [15:0] src_port,
+
+    input  wire [15:0] dst_port,
+
+    input  wire [15:0] duration,
+
+    input  wire [31:0] src_bytes,
+
+    input  wire [31:0] dst_bytes,
+
+    output reg         attack
+
+);
+
+
+
+always @(*) begin
+
+    attack = 1'b0; // default = normal
+
+
+
+    // ---------- ROOT ----------
+
+    if (proto <= 3'd1) begin
+
+
+
+        // ================= LEFT SUBTREE =================
+
+        if (src_port <= 16'd34297) begin
+
+
+
+            if (dst_port <= 16'd799) begin
+
+
+
+                if (src_port <= 16'd4) begin
+
+                    if (src_bytes <= 32'd118)
+
+                        attack = 1'b1;
+
+                    else if (src_bytes <= 32'd1564)
+
+                        attack = 1'b0;
+
+                    else
+
+                        attack = 1'b1;
+
+                end
+
+                else begin
+
+                    if (conn_state <= 4'd11) begin
+
+                        if (proto <= 3'd0) begin
+
+                            if (dst_port <= 16'd67) begin
+
+                                if (dst_bytes <= 32'd364)
+
+                                    attack = 1'b1;
+
+                                else
+
+                                    attack = 1'b0;
+
+                            end else begin
+
+                                attack = 1'b0;
+
+                            end
+
+                        end else begin
+
+                            if (duration <= 16'd165)
+
+                                attack = 1'b1;
+
+                            else if (duration <= 16'd175)
+
+                                attack = 1'b0;
+
+                            else
+
+                                attack = 1'b1;
+
+                        end
+
+                    end else begin
+
+                        if (dst_port <= 16'd289)
+
+                            attack = 1'b1;
+
+                        else
+
+                            attack = 1'b0;
+
+                    end
+
+                end
+
+
+
+            end else begin
+
+                if (dst_port <= 16'd45683)
+
+                    attack = 1'b0;
+
+                else if (src_port <= 16'd1961)
+
+                    attack = 1'b0;
+
+                else
+
+                    attack = 1'b1;
+
+            end
+
+
+
+        end else begin
+
+            if (dst_port <= 16'd41731) begin
+
+                if (dst_bytes <= 32'd19763) begin
+
+                    if (duration <= 16'd169) begin
+
+                        if (src_bytes <= 32'd637) begin
+
+                            if (conn_state <= 4'd11)
+
+                                attack = (dst_bytes <= 32'd13431);
+
+                            else
+
+                                attack = (dst_bytes <= 32'd3559);
+
+                        end else begin
+
+                            if (dst_port <= 16'd1162)
+
+                                attack = 1'b1;
+
+                            else if (dst_port <= 16'd6718)
+
+                                attack = 1'b0;
+
+                            else
+
+                                attack = 1'b1;
+
+                        end
+
+                    end else if (duration <= 16'd175) begin
+
+                        attack = (dst_port <= 16'd261);
+
+                    end else if (duration <= 16'd499) begin
+
+                        attack = 1'b1;
+
+                    end else begin
+
+                        attack = 1'b0;
+
+                    end
+
+                end else begin
+
+                    if (duration <= 16'd176) begin
+
+                        if (dst_port <= 16'd261)
+
+                            attack = (dst_bytes <= 32'd26556);
+
+                        else
+
+                            attack = (src_bytes > 32'd748);
+
+                    end else begin
+
+                        if (src_bytes <= 32'd369)
+
+                            attack = 1'b1;
+
+                        else if (src_bytes <= 32'd894)
+
+                            attack = 1'b0;
+
+                        else if (src_port <= 16'd49414)
+
+                            attack = 1'b1;
+
+                        else if (src_port <= 16'd50107)
+
+                            attack = 1'b0;
+
+                        else
+
+                            attack = 1'b1;
+
+                    end
+
+                end
+
+            end else begin
+
+                if (conn_state <= 4'd7) begin
+
+                    if (dst_port <= 16'd42231)
+
+                        attack = 1'b0;
+
+                    else
+
+                        attack = (conn_state > 4'd0);
+
+                end else begin
+
+                    attack = 1'b0;
+
+                end
+
+            end
+
+        end
+
+
+
+    end else begin
+
+
+
+        // ================= RIGHT SUBTREE =================
+
+        if (conn_state <= 4'd8) begin
+
+            if (src_port <= 16'd137) begin
+
+                if (src_bytes <= 32'd50) begin
+
+                    if (dst_port <= 16'd130)
+
+                        attack = 1'b0;
+
+                    else
+
+                        attack = 1'b1;
+
+                end else begin
+
+                    attack = 1'b0;
+
+                end
+
+            end else begin
+
+                if (src_bytes <= 32'd89)
+
+                    attack = (dst_port > 16'd4321);
+
+                else if (src_bytes <= 32'd163)
+
+                    attack = 1'b0;
+
+                else if (dst_port <= 16'd95)
+
+                    attack = 1'b1;
+
+                else
+
+                    attack = 1'b0;
+
+            end
+
+        end else begin
+
+            if (src_bytes <= 32'd42) begin
+
+                if (dst_bytes <= 32'd68)
+
+                    attack = (src_port > 16'd32795);
+
+                else
+
+                    attack = (src_bytes <= 32'd41);
+
+            end else begin
+
+                if (src_port <= 16'd32698)
+
+                    attack = 1'b0;
+
+                else
+
+                    attack = (dst_bytes <= 32'd118);
+
+            end
+
+        end
+
+    end
+
+end
+
+
+
+endmodule
