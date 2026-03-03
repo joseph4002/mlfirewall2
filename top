@@ -1,0 +1,128 @@
+`timescale 1ns / 1ps
+
+module firewall_top(
+    input  wire clk,
+    input  wire rx,
+    output wire tx,
+    output wire led_attack,
+    output wire led_normal,
+    output wire led_rx
+);
+
+wire rx_dv;
+wire [7:0] rx_byte;
+
+reg [4:0] byte_count = 0;   // widened
+reg packet_done = 0;
+
+// Firewall Registers
+reg [2:0]  proto;
+reg [3:0]  conn_state;
+reg [15:0] src_port;
+reg [15:0] dst_port;
+reg [15:0] duration;
+reg [31:0] src_bytes;
+reg [31:0] dst_bytes;
+
+wire attack;
+
+// UART RX
+uart_rx uart_rx_inst(
+    .i_clk(clk),
+    .i_rx_serial(rx),
+    .o_rx_dv(rx_dv),
+    .o_rx_byte(rx_byte)
+);
+
+// RX LED Blink (~50ms)
+reg [23:0] rx_led_counter = 0;
+
+always @(posedge clk) begin
+    if (rx_dv)
+        rx_led_counter <= 24'd5_000_000;
+    else if (rx_led_counter > 0)
+        rx_led_counter <= rx_led_counter - 1;
+end
+
+assign led_rx = (rx_led_counter > 0);
+
+// Packet Assembly
+always @(posedge clk) begin
+    packet_done <= 0;
+
+    if (rx_dv) begin
+        case (byte_count)
+
+            0: proto <= rx_byte[2:0];
+            1: conn_state <= rx_byte[3:0];
+            2: src_port[7:0] <= rx_byte;
+            3: src_port[15:8] <= rx_byte;
+            4: dst_port[7:0] <= rx_byte;
+            5: dst_port[15:8] <= rx_byte;
+            6: duration[7:0] <= rx_byte;
+            7: duration[15:8] <= rx_byte;
+            8: src_bytes[7:0] <= rx_byte;
+            9: src_bytes[15:8] <= rx_byte;
+            10: src_bytes[23:16] <= rx_byte;
+            11: src_bytes[31:24] <= rx_byte;
+            12: dst_bytes[7:0] <= rx_byte;
+            13: dst_bytes[15:8] <= rx_byte;
+            14: dst_bytes[23:16] <= rx_byte;
+            15: begin
+                dst_bytes[31:24] <= rx_byte;
+                packet_done <= 1;
+                byte_count <= 0;
+            end
+        endcase
+
+        if (byte_count != 15)
+            byte_count <= byte_count + 1;
+    end
+end
+
+// Decision Tree (UNCHANGED)
+dt_firewall firewall_inst(
+    .proto(proto),
+    .conn_state(conn_state),
+    .src_port(src_port),
+    .dst_port(dst_port),
+    .duration(duration),
+    .src_bytes(src_bytes),
+    .dst_bytes(dst_bytes),
+    .attack(attack)
+);
+
+// =====================================================
+// Latch attack result only when packet is complete
+// =====================================================
+
+reg attack_latched = 0;
+
+always @(posedge clk) begin
+    if (packet_done)
+        attack_latched <= attack;
+end
+
+assign led_attack = attack_latched;
+assign led_normal = ~attack_latched;
+
+// UART TX
+reg tx_dv = 0;
+reg [7:0] tx_data = 0;
+
+uart_tx uart_tx_inst(
+    .i_clk(clk),
+    .i_tx_dv(tx_dv),
+    .i_tx_byte(tx_data),
+    .o_tx_serial(tx)
+);
+
+always @(posedge clk) begin
+    tx_dv <= 0;
+    if (packet_done) begin
+        tx_data <= attack ? 8'h41 : 8'h4E;
+        tx_dv <= 1;
+    end
+end
+
+endmodule
