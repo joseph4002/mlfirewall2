@@ -1,0 +1,182 @@
+#include <WiFi.h>
+#include <WebServer.h>
+
+// ================= UART CONFIG =================
+#define RXD2 16
+#define TXD2 17
+
+// ================= WIFI ========================
+const char* ssid     = "iQOO Z9 5G";
+const char* password = "jes12345";
+
+// ================= SERVER ======================
+WebServer server(80);
+String resultText = "Waiting...";
+
+// =====================================================
+// Send 16-Byte Packet (Matches firewall_top exactly)
+// =====================================================
+void sendPacket(uint8_t proto,
+                uint8_t conn_state,
+                uint16_t src_port,
+                uint16_t dst_port,
+                uint16_t duration,
+                uint32_t src_bytes,
+                uint32_t dst_bytes)
+{
+  while (Serial2.available()) Serial2.read();
+
+  Serial2.write(proto);
+  Serial2.write(conn_state);
+
+  Serial2.write(lowByte(src_port));
+  Serial2.write(highByte(src_port));
+
+  Serial2.write(lowByte(dst_port));
+  Serial2.write(highByte(dst_port));
+
+  Serial2.write(lowByte(duration));
+  Serial2.write(highByte(duration));
+
+  Serial2.write((uint8_t)(src_bytes));
+  Serial2.write((uint8_t)(src_bytes >> 8));
+  Serial2.write((uint8_t)(src_bytes >> 16));
+  Serial2.write((uint8_t)(src_bytes >> 24));
+
+  Serial2.write((uint8_t)(dst_bytes));
+  Serial2.write((uint8_t)(dst_bytes >> 8));
+  Serial2.write((uint8_t)(dst_bytes >> 16));
+  Serial2.write((uint8_t)(dst_bytes >> 24));
+
+  unsigned long startTime = millis();
+
+  while (millis() - startTime < 500) {
+    if (Serial2.available()) {
+      char response = Serial2.read();
+
+      if (response == 'A')
+        resultText = "ATTACK DETECTED 🔴";
+      else if (response == 'N')
+        resultText = "NORMAL TRAFFIC 🟢";
+      else
+        resultText = "UNKNOWN RESPONSE";
+
+      return;
+    }
+  }
+
+  resultText = "NO RESPONSE FROM FPGA";
+}
+
+// =====================================================
+// Web Page
+// =====================================================
+void handleRoot()
+{
+  String page =
+  "<!DOCTYPE html><html><head>"
+  "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+  "<style>"
+  "body{background:#f4f7fa;font-family:Arial;text-align:center;color:#333;}"
+  ".card{background:white;padding:30px;border-radius:12px;"
+  "box-shadow:0 4px 8px rgba(0,0,0,0.1);display:inline-block;margin-top:40px;}"
+  "button{padding:14px 24px;font-size:16px;margin:8px;border-radius:8px;border:none;cursor:pointer;}"
+  ".ddos{background:#c0392b;color:white;}"
+  ".scan{background:#f39c12;color:white;}"
+  ".brute{background:#8e44ad;color:white;}"
+  ".normal{background:#27ae60;color:white;}"
+  "</style></head><body>"
+  "<div class='card'>"
+  "<h1>ML FPGA Firewall</h1>"
+  "<h3>Result: " + resultText + "</h3>"
+  "<form action='/ddos'><button class='ddos'>DDoS Attack</button></form>"
+  "<form action='/portscan'><button class='scan'>Port Scan</button></form>"
+  "<form action='/bruteforce'><button class='brute'>Brute Force</button></form>"
+  "<form action='/normal'><button class='normal'>Normal Traffic</button></form>"
+  "</div></body></html>";
+
+  server.send(200, "text/html", page);
+}
+
+// =====================================================
+void setup()
+{
+  Serial.begin(115200);
+  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+  }
+
+  Serial.println("WiFi Connected!");
+  Serial.println(WiFi.localIP());
+
+  server.on("/", handleRoot);
+
+  // ================= DDoS =================
+  server.on("/ddos", []() {
+    sendPacket(
+      1,      // proto
+      7,      // conn_state
+      1000,   // src_port
+      80,     // dst_port
+      5,      // duration small
+      500000, // src_bytes very high
+      600000  // dst_bytes very high
+    );
+    handleRoot();
+  });
+
+  // ================= PORT SCAN =================
+  server.on("/portscan", []() {
+    sendPacket(
+      1,
+      3,
+      3,
+      21,
+      10,
+      50,
+      80
+    );
+    handleRoot();
+  });
+
+  // ================= BRUTE FORCE =================
+  server.on("/bruteforce", []() {
+    sendPacket(
+      1,
+      5,
+      2,
+      21,
+      30,
+      40,
+      60
+    );
+    handleRoot();
+  });
+
+  // ================= NORMAL =================
+  server.on("/normal", []() {
+    sendPacket(
+      3,
+      0,
+      40000,
+      40000,
+      500,
+      100000,
+      100000
+    );
+    handleRoot();
+  });
+
+  server.begin();
+}
+
+// =====================================================
+void loop()
+{
+  server.handleClient();
+}
